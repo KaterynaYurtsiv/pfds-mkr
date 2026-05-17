@@ -3,6 +3,7 @@ import numpy as np
 from sqlalchemy import create_engine
 import os
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
@@ -55,6 +56,8 @@ hot_count = np.sum(temperature_np > 30)
 max_idx = np.nanargmax(temperature_np)
 min_idx = np.nanargmin(temperature_np)
 
+print(f"Apparent temperature sample: {apparent_temperature[:5]}")
+
 print(f"Mean temperature: {temp_mean:.2f}")
 print(f"Median temperature: {temp_median:.2f}")
 print(f"Standard deviation: {temp_std:.2f}")
@@ -71,6 +74,7 @@ print("Minimum temperature:")
 print(f"obs_id: {raw_df.loc[min_idx, 'obs_id']}")
 print(f"datetime: {raw_df.loc[min_idx, 'datetime']}")
 print(f"temperature: {temperature_np[min_idx]:.2f}")
+
 
 print("\n=== BLOCK 2. PANDAS CLEANING ===")
 
@@ -121,6 +125,7 @@ print(df.info())
 print("\nCleaned data description:")
 print(df.describe())
 
+
 print("\n=== BLOCK 3. PANDAS ANALYTICS ===")
 
 mean_temp_by_city = df.groupby("city")["temperature_c"].mean()
@@ -159,7 +164,6 @@ print("\nPivot table (city x month):")
 print(pivot_table)
 
 rainy_days = df[df["precipitation_mm"] > 5].copy()
-
 rainy_days["date"] = rainy_days.index.date
 
 rainy_days_count = rainy_days.groupby("city")["date"].nunique()
@@ -176,33 +180,36 @@ monthly_norm = monthly_data.groupby("month")["temp"].mean()
 
 monthly_data["norm"] = monthly_data["month"].map(monthly_norm)
 
-monthly_data["deviation"] = (
-    monthly_data["temp"] - monthly_data["norm"]
-)
-
-monthly_data["abs_deviation"] = (
-    monthly_data["deviation"].abs()
-)
+monthly_data["deviation"] = monthly_data["temp"] - monthly_data["norm"]
+monthly_data["abs_deviation"] = monthly_data["deviation"].abs()
 
 anomaly_idx = monthly_data["abs_deviation"].idxmax()
-
 anomaly_row = monthly_data.loc[anomaly_idx]
 
 print("\nAnomalous month:")
-print(f"Year: {anomaly_row['year']}")
-print(f"Month: {anomaly_row['month']}")
+print(f"Year: {anomaly_row['year']:.0f}")
+print(f"Month: {anomaly_row['month']:.0f}")
 print(f"Temperature deviation: {anomaly_row['deviation']:.2f} °C")
 
 if anomaly_row["deviation"] > 0:
-    print("Type: Heat wave")
+    anomaly_type = "Heat wave"
 else:
-    print("Type: Cold wave")
+    anomaly_type = "Cold wave"
+
+print(f"Type: {anomaly_type}")
+
+region_temp_std = df.groupby("region")["temperature_c"].std()
+most_stable_region = region_temp_std.idxmin()
+
+print("\nTemperature stability by region:")
+print(region_temp_std)
+print(f"\nMost stable region by temperature: {most_stable_region}")
+
 
 print("\n=== BLOCK 4. MATPLOTLIB PLOTS ===")
 
 os.makedirs("plots", exist_ok=True)
 
-# 1. Line plot — monthly temperature for 3 cities
 selected_cities = ["Київ", "Львів", "Одеса"]
 
 plt.figure(figsize=(10, 6))
@@ -221,7 +228,6 @@ plt.savefig("plots/01_monthly_temperature.png", dpi=300)
 plt.close()
 
 
-# 2. Bar plot — total precipitation by city
 plt.figure(figsize=(8, 6))
 
 precipitation_by_city.plot(kind="bar")
@@ -234,7 +240,6 @@ plt.savefig("plots/02_precipitation_by_city.png", dpi=300)
 plt.close()
 
 
-# 3. Histogram — temperature distribution with mean and median
 plt.figure(figsize=(8, 6))
 
 mean_temperature = df["temperature_c"].mean()
@@ -253,7 +258,6 @@ plt.savefig("plots/03_temperature_histogram.png", dpi=300)
 plt.close()
 
 
-# 4. Heatmap — city x month average temperature
 plt.figure(figsize=(10, 6))
 
 plt.imshow(pivot_table, aspect="auto")
@@ -279,25 +283,15 @@ plt.close()
 
 print("Plots saved to the 'plots' folder.")
 
+
 """
 Висновки:
 
 Найтеплішим містом у наборі даних виявився Київ, а найхолоднішим – Дніпро.
-Також Київ має найбільшу сумарну кількість опадів, що свідчить про більш
-вологий клімат у порівнянні з іншими містами.
-
-Динаміка температур чітко демонструє сезонність клімату. Найвищі
-температури спостерігаються наприкінці весни та влітку, а найнижчі –
-у зимовий період.
-
-Аномальним місяцем було визначено травень 2023 року, у якому зафіксовано
-відхилення температури приблизно на -4.25 °C від кліматичної норми.
+Найбільшу сумарну кількість опадів також має Київ, тому його можна вважати найвологішим містом у цьому наборі даних.
+Динаміка температур демонструє чітку сезонність: найнижчі значення спостерігаються взимку, а найвищі – наприкінці весни та влітку.
+Аномальним місяцем було визначено травень 2023 року, коли температура була нижчою за кліматичну норму приблизно на -4.25 °C.
 Цю аномалію можна класифікувати як хвилю холоду.
-
-Теплова карта показала, що Київ у більшості місяців має вищі середні
-температури, тоді як Дніпро та Харків характеризуються холоднішими зимами.
-
-Під час роботи набір даних потребував попереднього очищення, оскільки
-містив дублікати, пропущені значення та фізичні викиди. Проведене очищення
-дозволило отримати більш точні та надійні результати аналізу.
+Найстабільнішим за температурою регіоном виявився West, оскільки він має найменше стандартне відхилення температури – 10.41 °C.
+Для подальших кліматичних звітів рекомендовано обов’язково виконувати очищення даних від дублів, пропущених значень і фізичних викидів перед побудовою аналітики.
 """
